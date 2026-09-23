@@ -54,9 +54,13 @@ def read_file(
 
     try:
 
-        return request.app.state.editor.open(
+        content = request.app.state.editor.open(
             path
         )
+        return {
+            "path": path,
+            "content": content,
+        }
 
     except Exception as error:
 

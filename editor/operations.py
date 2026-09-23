@@ -61,7 +61,7 @@ class EditorInterface:
             else EventBus()
         )
 
-        self.sessions = (
+        self.session_manager = (
             sessions
             if sessions is not None
             else EditorManager()
@@ -108,7 +108,7 @@ class EditorInterface:
         Snapshot of all connected interface sessions.
         """
 
-        return self.sessions.snapshot()
+        return self.session_manager.snapshot()
 
     # ========================================================
     # READ / WRITE
