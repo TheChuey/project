@@ -12,34 +12,49 @@ Single-file backup of the complete application source code and file structure.
 
 ## File Structure
 
-```
+```text
 project/
-├── .gitattributes
-├── .gitignore
-├── README.md
-├── requirements.txt
-├── server.py
-├── documentation/
-│   └── MASTER_COPY.md
-├── projectConfiguration/
-│   ├── Project_files.py
-│   └── project.json
-├── run_at_first_use/
-│   ├── run.bat
-│   ├── run.sh
-│   └── setup.sh
-└── static/
-    ├── editor.html
-    └── index.html
+    ├── documentation
+    │   ├── MASTER_COPY.md
+    │   └── PLAN_editor_interface.md
+    ├── editor
+    │   ├── __init__.py
+    │   ├── events.py
+    │   ├── operations.py
+    │   └── session.py
+    ├── projectConfiguration
+    │   ├── __init__.py
+    │   ├── project.json
+    │   └── Project_files.py
+    ├── routers
+    │   ├── __init__.py
+    │   ├── directories.py
+    │   ├── errors.py
+    │   ├── files.py
+    │   ├── paths.py
+    │   └── project.py
+    ├── run_at_first_use
+    │   ├── run.bat
+    │   ├── run.sh
+    │   └── setup.sh
+    ├── static
+    │   ├── editor.html
+    │   └── index.html
+    ├── .gitattributes
+    ├── .gitignore
+    ├── editor_client.py
+    ├── README.md
+    ├── requirements.txt
+    └── server.py
 ```
 
 ---
 
 ## File Contents
 
-### 1. `README.md`
+### README.md
 
-```markdown
+````markdown
 # Project Manager
 
 A lightweight FastAPI workspace server. Browse and edit project files from a
@@ -113,22 +128,23 @@ PROJECT_MANAGER_HOST=0.0.0.0 PROJECT_MANAGER_PORT=8080 ./run.sh
 
 Note: The `data/`, `config/`, `documentation/`, etc. folders are empty so git
 does not track them; the server recreates them automatically on startup.
-```
-
+````
 ---
 
-### 2. `requirements.txt`
+### requirements.txt
 
-```text
-fastapi==0.141.1
-uvicorn==0.53.0
-```
+`text
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+httpx==0.27.2
+websockets==13.1
 
+`
 ---
 
-### 3. `server.py`
+### server.py
 
-```python
+`python
 """
 Project Manager Server
 ======================
@@ -617,25 +633,24 @@ if __name__ == "__main__":
         host=HOST,
         port=PORT,
     )
-```
 
+`
 ---
 
-### 4. `projectConfiguration/project.json`
+### projectConfiguration/project.json
 
-```json
+`json
 {
     "name": "Project Manager",
     "version": "1.0.0",
     "workspace_version": "1.0"
 }
-```
-
+`
 ---
 
-### 5. `projectConfiguration/Project_files.py`
+### projectConfiguration/Project_files.py
 
-```python
+`python
 """
 Project Manager Filesystem
 ==========================
@@ -672,9 +687,11 @@ from typing import Any
 # PROJECT CONFIGURATION
 # ============================================================
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_CONFIG_DIR = Path(__file__).resolve().parent
 
-PROJECT_JSON = PROJECT_ROOT / "project.json"
+PROJECT_ROOT = PROJECT_CONFIG_DIR.parent
+
+PROJECT_JSON = PROJECT_CONFIG_DIR / "project.json"
 
 
 # ============================================================
@@ -1306,13 +1323,13 @@ if __name__ == "__main__":
             indent=4,
         )
     )
-```
 
+`
 ---
 
-### 6. `run_at_first_use/setup.sh`
+### run_at_first_use/setup.sh
 
-```bash
+`bash
 #!/usr/bin/env bash
 #
 # Project Manager - one-time setup for (Chromebook) Linux.
@@ -1345,13 +1362,12 @@ echo "Installing dependencies..."
 echo
 echo "Setup complete. Start the server with:  ./run.sh"
 echo "Then open:  http://127.0.0.1:8000"
-```
-
+`
 ---
 
-### 7. `run_at_first_use/run.sh`
+### run_at_first_use/run.sh
 
-```bash
+`bash
 #!/usr/bin/env bash
 #
 # Project Manager - start the server from the virtual environment.
@@ -1371,13 +1387,12 @@ echo "To stop: press Ctrl+C"
 echo
 
 .venv/bin/python server.py
-```
-
+`
 ---
 
-### 8. `run_at_first_use/run.bat`
+### run_at_first_use/run.bat
 
-```dosbatch
+`dosbatch
 @echo off
 rem Project Manager - start the server from the virtual environment.
 
@@ -1392,13 +1407,12 @@ echo To stop: press Ctrl+C
 echo.
 
 .venv\Scripts\python server.py
-```
-
+`
 ---
 
-### 9. `static/index.html`
+### static/index.html
 
-```html
+`html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1687,13 +1701,12 @@ loadProject();
 
 </body>
 </html>
-```
-
+`
 ---
 
-### 10. `static/editor.html`
+### static/editor.html
 
-```html
+`html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2301,13 +2314,12 @@ window.addEventListener("beforeunload", function (event) {
 
 </body>
 </html>
-```
-
+`
 ---
 
-### 11. `.gitattributes`
+### gitattributes
 
-```git-attrs
+`git-attrs
 # Text files use LF line endings everywhere.
 * text=auto eol=lf
 
@@ -2321,13 +2333,12 @@ window.addEventListener("beforeunload", function (event) {
 *.json text eol=lf
 *.md text eol=lf
 *.txt text eol=lf
-```
-
+`
 ---
 
-### 12. `.gitignore`
+### gitignore
 
-```gitignore
+`gitignore
 # Python
 __pycache__/
 *.py[cod]
@@ -2355,8 +2366,7 @@ htmlcov/
 
 # Logs
 *.log
-```
-
+`
 ---
 
 *End of master copy.*

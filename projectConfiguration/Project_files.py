@@ -34,9 +34,11 @@ from typing import Any
 # PROJECT CONFIGURATION
 # ============================================================
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_CONFIG_DIR = Path(__file__).resolve().parent
 
-PROJECT_JSON = PROJECT_ROOT / "project.json"
+PROJECT_ROOT = PROJECT_CONFIG_DIR.parent
+
+PROJECT_JSON = PROJECT_CONFIG_DIR / "project.json"
 
 
 # ============================================================
