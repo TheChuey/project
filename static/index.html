@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Manager Dashboard</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            background: #1e1e1e;
+            color: #ffffff;
+        }
+
+        .topbar {
+            height: 48px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 12px;
+            background: #252526;
+            border-bottom: 1px solid #3f3f46;
+        }
+
+        .title {
+            font-weight: bold;
+            margin-right: 12px;
+        }
+
+        button {
+            border: 1px solid #555;
+            background: #333;
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #444;
+        }
+
+        button.primary {
+            background: #0e639c;
+            border-color: #1177bb;
+        }
+
+        .container {
+            padding: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: #252526;
+            border: 1px solid #3f3f46;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            font-size: 18px;
+        }
+
+        .tree-item {
+            user-select: none;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tree-item:hover {
+            background: #2a2d2e;
+        }
+
+        .children {
+            margin-left: 16px;
+        }
+
+        .statusbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            background: #007acc;
+            color: white;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="title">Project Manager Dashboard</div>
+    <button class="primary" onclick="openEditor()">Editor</button>
+    <button onclick="openEditorPopup()">Editor (Popup)</button>
+    <button onclick="refreshProject()">Refresh</button>
+</div>
+
+<div class="container">
+    <div class="actions">
+        <button class="primary" onclick="openEditor()">Open Full Editor</button>
+        <button onclick="openEditorPopup()">Launch Editor Window</button>
+        <button onclick="submitCreateFilePrompt()">+ New File</button>
+        <button onclick="submitCreateFolderPrompt()">+ New Folder</button>
+    </div>
+
+    <div class="card">
+        <h2>Project Workspace</h2>
+        <div id="projectTree">Loading files...</div>
+    </div>
+</div>
+
+<div class="statusbar">
+    <div id="statusMessage">Ready</div>
+</div>
+
+<script>
+/* ============================================================
+   NAVIGATION & EDITOR LAUNCHERS
+   ============================================================ */
+
+// Opens editor in the current window
+function openEditor(filePath) {
+    let url = "/editor";
+    if (filePath) {
+        url += "?path=" + encodeURIComponent(filePath);
+    }
+    window.location.href = url;
+}
+
+// Opens editor in a floating popup window
+function openEditorPopup(filePath) {
+    let url = "/editor";
+    if (filePath) {
+        url += "?path=" + encodeURIComponent(filePath);
+    }
+
+    const width = 1200;
+    const height = 800;
+    const left = (window.screen.width - width) / 2;
+    const top = (window.screen.height - height) / 2;
+
+    window.open(
+        url,
+        "ProjectManagerEditorPopup",
+        `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no`
+    );
+}
+
+/* ============================================================
+   PROJECT TREE & API CALLS
+   ============================================================ */
+
+async function loadProject() {
+    setStatus("Loading project...");
+    try {
+        const response = await fetch("/api/project");
+        if (!response.ok) throw new Error("Could not load project");
+
+        const data = await response.json();
+        renderTree(data.filesystem || []);
+        setStatus("Project loaded");
+    } catch (err) {
+        setStatus("Error: " + err.message);
+    }
+}
+
+function renderTree(items) {
+    const container = document.getElementById("projectTree");
+    container.innerHTML = "";
+    renderItems(items, container);
+}
+
+function renderItems(items, container) {
+    items.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "tree-item";
+        
+        const label = document.createElement("span");
+        label.textContent = (item.type === "directory" ? "📁 " : "📄 ") + item.name;
+        div.appendChild(label);
+
+        if (item.type === "file") {
+            const btnGroup = document.createElement("div");
+            
+            const editBtn = document.createElement("button");
+            editBtn.textContent = "Edit";
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                openEditor(item.path);
+            };
+
+            const popupBtn = document.createElement("button");
+            popupBtn.textContent = "Popup";
+            popupBtn.style.marginLeft = "4px";
+            popupBtn.onclick = (e) => {
+                e.stopPropagation();
+                openEditorPopup(item.path);
+            };
+
+            btnGroup.appendChild(editBtn);
+            btnGroup.appendChild(popupBtn);
+            div.appendChild(btnGroup);
+        }
+
+        container.appendChild(div);
+
+        if (item.type === "directory" && item.children) {
+            const childrenContainer = document.createElement("div");
+            childrenContainer.className = "children";
+            container.appendChild(childrenContainer);
+            renderItems(item.children, childrenContainer);
+        }
+    });
+}
+
+async function submitCreateFilePrompt() {
+    const path = prompt("Enter file path/name:");
+    if (!path) return;
+
+    try {
+        const res = await fetch("/api/file/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path: path, content: "" })
+        });
+        if (!res.ok) throw new Error("Failed to create file");
+        await loadProject();
+        openEditor(path);
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+async function submitCreateFolderPrompt() {
+    const path = prompt("Enter folder path:");
+    if (!path) return;
+
+    try {
+        const res = await fetch("/api/directory/create?path=" + encodeURIComponent(path), {
+            method: "POST"
+        });
+        if (!res.ok) throw new Error("Failed to create folder");
+        await loadProject();
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+function refreshProject() {
+    loadProject();
+}
+
+function setStatus(msg) {
+    document.getElementById("statusMessage").textContent = msg;
+}
+
+// Initial Load
+loadProject();
+</script>
+
+</body>
+</html>
