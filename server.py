@@ -1,17 +1,22 @@
 """Project Manager Server - application entry point.
 
 Slim FastAPI host. The Project Manager remains the filesystem
-authority (projectConfiguration.Project_files); this file only
-assembles routers and the static workspace.
+authority (parameters.filesystem); this file only assembles the
+three pillars and the static workspace:
+
+    parameters          Project parameters (filesystem owner)
+    workspace           The managed project content
+    interface           Editor interface (core, routers, clients, static)
 
 The controller is the single shared resource responsible for
 turning Project Manager operations into HTTP contracts.
 
-    routers/project.py        Project state, health, sessions
-    routers/files.py          File CRUD / REST
-    routers/directories.py    Directory CRUD
-    routers/paths.py          Rename / move
-    routers/ws.py             Real-time WebSocket interface
+    interface/routers/project.py      Project state, health, sessions
+    interface/routers/files.py        File CRUD / REST
+    interface/routers/directories.py  Directory CRUD
+    interface/routers/paths.py        Rename / move
+    interface/routers/ws.py           Real-time WebSocket interface
+    interface/routers/chat.py         Chat log (stub) interface
 """
 
 from __future__ import annotations
@@ -24,15 +29,16 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from projectConfiguration import Project_files
+from parameters import filesystem
 
-from routers.project import router as project_router
-from routers.files import router as files_router
-from routers.directories import router as directories_router
-from routers.paths import router as paths_router
-from routers.ws import router as ws_router
+from interface.routers.project import router as project_router
+from interface.routers.files import router as files_router
+from interface.routers.directories import router as directories_router
+from interface.routers.paths import router as paths_router
+from interface.routers.ws import router as ws_router
+from interface.routers.chat import router as chat_router
 
-from editor.defaults import get_interface, get_events, get_sessions
+from interface.core.defaults import get_interface, get_events, get_sessions
 
 
 # ============================================================
@@ -53,11 +59,13 @@ PORT = int(
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 
-STATIC_DIR = PROJECT_ROOT / "static"
+STATIC_DIR = PROJECT_ROOT / "interface" / "static"
 
-INDEX_HTML = STATIC_DIR / "index.html"
+HOME_HTML = STATIC_DIR / "home.html"
 
 EDITOR_HTML = STATIC_DIR / "editor.html"
+
+CHAT_HTML = STATIC_DIR / "chat.html"
 
 
 # ============================================================
@@ -70,7 +78,7 @@ async def lifespan(app: FastAPI):
     Build the basic project filesystem on startup.
     """
 
-    Project_files.build_project_filesystem()
+    filesystem.build_project_filesystem()
 
     yield
 
@@ -104,6 +112,7 @@ def create_app() -> FastAPI:
     app.include_router(directories_router)
     app.include_router(paths_router)
     app.include_router(ws_router)
+    app.include_router(chat_router)
 
     # --------------------------------------------------------
     # Static workspace
@@ -119,7 +128,11 @@ def create_app() -> FastAPI:
 
     @app.get("/")
     def home():
-        return FileResponse(INDEX_HTML)
+        return FileResponse(HOME_HTML)
+
+    @app.get("/chat")
+    def chat():
+        return FileResponse(CHAT_HTML)
 
     @app.get("/editor")
     def editor():

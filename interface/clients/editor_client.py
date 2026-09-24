@@ -9,18 +9,22 @@ The client is the *interface*. It never touches the filesystem; it
 always goes through the running Project Manager server.
 
 Sync client:
-    >>> from editor_client import EditorClient
+    >>> from interface.clients import EditorClient
     >>> client = EditorClient()
     >>> client.health()
 
 Async client (for agents / async code):
-    >>> from editor_client import AsyncEditorClient
+    >>> from interface.clients import AsyncEditorClient
     >>> client = AsyncEditorClient()
     >>> await client.health()
 
 WebSocket subscriptions (real-time events):
     >>> async for event in client.subscribe():
     ...     print(event)
+
+File operations accept a ``scope`` argument:
+    * ``"workspace"`` (default) — the managed workspace
+    * ``"app"``               — the application repository (dev files)
 """
 
 from __future__ import annotations
@@ -149,11 +153,13 @@ class EditorClient:
     def _put(
         self,
         endpoint: str,
-        **params: Any,
+        params: dict[str, Any] | None = None,
+        payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         response = self._http.put(
             endpoint,
             params=params,
+            json=payload,
         )
 
         _raise_for_error(response)
@@ -166,11 +172,13 @@ class EditorClient:
     def _post(
         self,
         endpoint: str,
-        **params: Any,
+        params: dict[str, Any] | None = None,
+        payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         response = self._http.post(
             endpoint,
             params=params,
+            json=payload,
         )
 
         _raise_for_error(response)
@@ -202,7 +210,7 @@ class EditorClient:
     # ========================================================
 
     def health(self) -> dict[str, Any]:
-        return self._get("/api/project/health")
+        return self._get("/api/health")
 
     def project(self) -> dict[str, Any]:
         return self._get("/api/project")
@@ -220,15 +228,18 @@ class EditorClient:
     def read(
         self,
         path: str,
+        scope: str = "workspace",
     ) -> dict[str, Any]:
         return self._get(
             "/api/file/read",
             path=_apply_project_root(path),
+            scope=scope,
         )
 
     def open(
         self,
         path: str,
+        scope: str = "workspace",
     ):
         """
         Open a project file and return its contents.
@@ -236,48 +247,59 @@ class EditorClient:
         Alias for read().
         """
 
-        return self.read(path)
+        return self.read(path, scope=scope)
 
     def write(
         self,
         path: str,
         content: str,
+        scope: str = "workspace",
     ) -> dict[str, Any]:
         return self._put(
             "/api/file/write",
-            path=_apply_project_root(path),
-            content=content,
+            payload={
+                "path": _apply_project_root(path),
+                "content": content,
+                "scope": scope,
+            },
         )
 
     def save(
         self,
         path: str,
         content: str,
+        scope: str = "workspace",
     ):
         """
         Save file content. Alias for write().
         """
 
-        return self.write(path, content)
+        return self.write(path, content, scope=scope)
 
     def create_file(
         self,
         path: str,
         content: str = "",
+        scope: str = "workspace",
     ) -> dict[str, Any]:
         return self._post(
             "/api/file/create",
-            path=_apply_project_root(path),
-            content=content,
+            payload={
+                "path": _apply_project_root(path),
+                "content": content,
+                "scope": scope,
+            },
         )
 
     def delete_file(
         self,
         path: str,
+        scope: str = "workspace",
     ) -> dict[str, Any]:
         return self._delete(
             "/api/file/delete",
             path=_apply_project_root(path),
+            scope=scope,
         )
 
     # ========================================================
@@ -287,19 +309,25 @@ class EditorClient:
     def create_directory(
         self,
         path: str,
+        scope: str = "workspace",
     ) -> dict[str, Any]:
         return self._post(
             "/api/directory/create",
-            path=_apply_project_root(path),
+            params={
+                "path": _apply_project_root(path),
+                "scope": scope,
+            },
         )
 
     def delete_directory(
         self,
         path: str,
+        scope: str = "workspace",
     ) -> dict[str, Any]:
         return self._delete(
             "/api/directory/delete",
             path=_apply_project_root(path),
+            scope=scope,
         )
 
     # ========================================================
@@ -310,11 +338,15 @@ class EditorClient:
         self,
         old_path: str,
         new_path: str,
+        scope: str = "workspace",
     ) -> dict[str, Any]:
         return self._put(
             "/api/path/rename",
-            old_path=_apply_project_root(old_path),
-            new_path=_apply_project_root(new_path),
+            payload={
+                "old_path": _apply_project_root(old_path),
+                "new_path": _apply_project_root(new_path),
+                "scope": scope,
+            },
         )
 
     # ========================================================
@@ -454,11 +486,13 @@ class AsyncEditorClient:
     async def _put(
         self,
         endpoint: str,
-        **params: Any,
+        params: dict[str, Any] | None = None,
+        payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         response = await self._http.put(
             endpoint,
             params=params,
+            json=payload,
         )
 
         _raise_for_error(response)
@@ -471,11 +505,13 @@ class AsyncEditorClient:
     async def _post(
         self,
         endpoint: str,
-        **params: Any,
+        params: dict[str, Any] | None = None,
+        payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         response = await self._http.post(
             endpoint,
             params=params,
+            json=payload,
         )
 
         _raise_for_error(response)
@@ -507,7 +543,7 @@ class AsyncEditorClient:
     # ========================================================
 
     async def health(self) -> dict[str, Any]:
-        return await self._get("/api/project/health")
+        return await self._get("/api/health")
 
     async def project(self) -> dict[str, Any]:
         return await self._get("/api/project")
@@ -521,83 +557,107 @@ class AsyncEditorClient:
     async def read(
         self,
         path: str,
+        scope: str = "workspace",
     ) -> dict[str, Any]:
         return await self._get(
             "/api/file/read",
             path=_apply_project_root(path),
+            scope=scope,
         )
 
     async def open(
         self,
         path: str,
+        scope: str = "workspace",
     ):
-        return await self.read(path)
+        return await self.read(path, scope=scope)
 
     async def write(
         self,
         path: str,
         content: str,
+        scope: str = "workspace",
     ) -> dict[str, Any]:
         return await self._put(
             "/api/file/write",
-            path=_apply_project_root(path),
-            content=content,
+            payload={
+                "path": _apply_project_root(path),
+                "content": content,
+                "scope": scope,
+            },
         )
 
     async def save(
         self,
         path: str,
         content: str,
+        scope: str = "workspace",
     ):
-        return await self.write(path, content)
+        return await self.write(path, content, scope=scope)
 
     async def create_file(
         self,
         path: str,
         content: str = "",
+        scope: str = "workspace",
     ) -> dict[str, Any]:
         return await self._post(
             "/api/file/create",
-            path=_apply_project_root(path),
-            content=content,
+            payload={
+                "path": _apply_project_root(path),
+                "content": content,
+                "scope": scope,
+            },
         )
 
     async def delete_file(
         self,
         path: str,
+        scope: str = "workspace",
     ) -> dict[str, Any]:
         return await self._delete(
             "/api/file/delete",
             path=_apply_project_root(path),
+            scope=scope,
         )
 
     async def create_directory(
         self,
         path: str,
+        scope: str = "workspace",
     ) -> dict[str, Any]:
         return await self._post(
             "/api/directory/create",
-            path=_apply_project_root(path),
+            params={
+                "path": _apply_project_root(path),
+                "scope": scope,
+            },
         )
 
     async def delete_directory(
         self,
         path: str,
+        scope: str = "workspace",
     ) -> dict[str, Any]:
         return await self._delete(
             "/api/directory/delete",
             path=_apply_project_root(path),
+            scope=scope,
         )
 
     async def rename(
         self,
         old_path: str,
         new_path: str,
+        scope: str = "workspace",
     ) -> dict[str, Any]:
         return await self._put(
             "/api/path/rename",
-            old_path=_apply_project_root(old_path),
-            new_path=_apply_project_root(new_path),
+            payload={
+                "old_path": _apply_project_root(old_path),
+                "new_path": _apply_project_root(new_path),
+                "scope": scope,
+            },
         )
 
     # ========================================================

@@ -17,6 +17,13 @@ def project_manager_error(
 
     if isinstance(
         error,
+        HTTPException,
+    ):
+
+        return error
+
+    if isinstance(
+        error,
         FileNotFoundError,
     ):
 

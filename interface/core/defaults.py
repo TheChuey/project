@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from projectConfiguration import Project_files
+from parameters import filesystem
 
 from .events import EventBus
 from .session import EditorManager
@@ -84,7 +84,7 @@ def get_interface() -> EditorInterface:
     if _interface is None:
 
         _interface = EditorInterface(
-            filesystem=Project_files,
+            filesystem=filesystem,
             events=get_events(),
             sessions=get_sessions(),
         )

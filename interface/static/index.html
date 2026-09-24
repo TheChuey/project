@@ -89,12 +89,29 @@
             align-items: center;
         }
 
+        .tree-item.folder {
+            cursor: pointer;
+        }
+
+        .tree-item.folder .toggle {
+            display: inline-block;
+            width: 12px;
+            font-size: 11px;
+            color: #bbb;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
         .tree-item:hover {
             background: #2a2d2e;
         }
 
         .children {
             margin-left: 16px;
+        }
+
+        .children.collapsed {
+            display: none;
         }
 
         .statusbar {
@@ -163,10 +180,33 @@ function renderItems(items, container) {
   items.forEach(item => {
     const div = document.createElement('div');
     div.className = 'tree-item';
-    const label = document.createElement('span');
-    label.textContent = (item.type === 'directory' ? '📁 ' : '📄 ') + item.name;
-    div.appendChild(label);
-    if (item.type === 'file') {
+    if (item.type === 'directory') {
+      div.classList.add('folder');
+      div.dataset.path = item.path;
+      const toggle = document.createElement('span');
+      toggle.className = 'toggle';
+      toggle.textContent = '+';
+      const label = document.createElement('span');
+      label.textContent = '📁 ' + item.name;
+      label.style.flex = '1';
+      label.style.marginLeft = '4px';
+      div.appendChild(toggle);
+      div.appendChild(label);
+      div.onclick = (e) => {
+        e.stopPropagation();
+        toggleFolder(div);
+      };
+      container.appendChild(div);
+      if (item.children && item.children.length) {
+        const childrenContainer = document.createElement('div');
+        childrenContainer.className = 'children collapsed';
+        container.appendChild(childrenContainer);
+        renderItems(item.children, childrenContainer);
+      }
+    } else {
+      const label = document.createElement('span');
+      label.textContent = getFileIcon(item.name) + ' ' + item.name;
+      div.appendChild(label);
       const btnGroup = document.createElement('div');
       const editBtn = document.createElement('button');
       editBtn.textContent = 'Edit';
@@ -178,15 +218,40 @@ function renderItems(items, container) {
       btnGroup.appendChild(editBtn);
       btnGroup.appendChild(popupBtn);
       div.appendChild(btnGroup);
-    }
-    container.appendChild(div);
-    if (item.type === 'directory' && item.children) {
-      const childrenContainer = document.createElement('div');
-      childrenContainer.className = 'children';
-      container.appendChild(childrenContainer);
-      renderItems(item.children, childrenContainer);
+      container.appendChild(div);
     }
   });
+}
+
+function getFileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  const icons = {
+    py: '🐍',
+    html: '🌐', htm: '🌐',
+    css: '🎨',
+    js: '🟨', mjs: '🟨', jsx: '🟨',
+    ts: '🔷', tsx: '🔷',
+    json: '📋',
+    md: '📝',
+    sql: '🗄️',
+    xml: '🧾',
+    sh: '⌨️', bat: '⌨️', ps1: '⌨️',
+    yaml: '⚙️', yml: '⚙️', toml: '⚙️', ini: '⚙️', cfg: '⚙️', env: '⚙️',
+    txt: '📄', csv: '📄'
+  };
+  return icons[ext] || '📄';
+}
+
+function toggleFolder(div) {
+  const toggle = div.querySelector('.toggle');
+  if (toggle) {
+    toggle.classList.toggle('expanded');
+    toggle.textContent = toggle.classList.contains('expanded') ? '−' : '+';
+  }
+  const children = div.nextElementSibling;
+  if (children && children.classList.contains('children')) {
+    children.classList.toggle('collapsed');
+  }
 }
 
 async function submitCreateFilePrompt() {

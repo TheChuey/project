@@ -6,16 +6,23 @@ This is the single controller that HTTP routers, the browser, and
 the Python client all funnel through.
 
 The controller does NOT implement filesystem logic. Every filesystem
-operation is delegated to projectConfiguration.Project_files, which
+operation is delegated to parameters.filesystem, which
 remains the sovereign owner of the Project Manager filesystem.
 
     Router / Client
         ↓
     EditorInterface
         ↓
-    Project_files
+    parameters.filesystem
         ↓
     Filesystem
+
+Scopes
+------
+Operations address files relative to an active root chosen by scope:
+
+    * workspace  ->  the managed workspace (default)
+    * app        ->  the application repository root (dev files)
 """
 
 from __future__ import annotations
@@ -23,9 +30,31 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from projectConfiguration import Project_files
+from parameters import filesystem as _filesystem
 from .events import EventBus
 from .session import EditorManager
+
+
+# ============================================================
+# SCOPES
+# ============================================================
+
+VALID_SCOPES = ("workspace", "app")
+
+
+def _root_for(scope: str | None) -> Path:
+    """
+    Resolve a scope string into a filesystem root.
+
+    ``app`` reaches the application repository root (dev files);
+    everything else defaults to the managed workspace.
+    """
+
+    if scope == "app":
+
+        return _filesystem.REPO_ROOT
+
+    return _filesystem.PROJECT_ROOT
 
 
 # ============================================================
@@ -38,7 +67,7 @@ class EditorInterface:
 
     Provides a narrow set of high-level operations agents and the
     web editor can use. All filesystem work goes through
-    Project_files.
+    parameters.filesystem.
     """
 
     def __init__(
@@ -52,7 +81,7 @@ class EditorInterface:
         self.filesystem = (
             filesystem
             if filesystem is not None
-            else Project_files
+            else _filesystem
         )
 
         self.events = (
@@ -82,19 +111,29 @@ class EditorInterface:
             "root": str(self.filesystem.PROJECT_ROOT),
         }
 
-    def tree(self) -> dict[str, Any]:
+    def tree(
+        self,
+        scope: str | None = "workspace",
+    ) -> dict[str, Any]:
         """
-        Project state: project info, root and filesystem tree.
+        Project state: project info, active root and filesystem tree.
+
+        Args:
+            scope:
+                ``"workspace"`` (default) or ``"app"``.
         """
 
         try:
 
-            import json
+            root = _root_for(scope)
 
             return {
+                "scope": scope or "workspace",
                 "project": self.filesystem.read_project_info(),
-                "root": str(self.filesystem.PROJECT_ROOT),
-                "filesystem": self.filesystem.read_filesystem(),
+                "root": str(root),
+                "filesystem": self.filesystem.read_filesystem(
+                    directory=root
+                ),
             }
 
         except Exception as error:
@@ -117,30 +156,31 @@ class EditorInterface:
     def open(
         self,
         path: str,
+        scope: str | None = "workspace",
     ) -> str:
         """
         Open a project file and return its contents.
 
         Args:
             path:
-                Project-relative file path.
+                Root-relative file path.
+            scope:
+                ``"workspace"`` (default) or ``"app"``.
 
         Returns:
             The file contents.
-
-        Raises:
-            ValueError / FileNotFoundError:
-                Propagated from Project_files.
         """
 
         return self.filesystem.read_file(
-            path
+            path,
+            root=_root_for(scope),
         )
 
     def save(
         self,
         path: str,
         content: str,
+        scope: str | None = "workspace",
     ) -> dict[str, Any]:
         """
         Write file contents back to the project filesystem.
@@ -151,16 +191,19 @@ class EditorInterface:
         self.filesystem.write_file(
             path,
             content,
+            root=_root_for(scope),
         )
 
         self.events.publish(
             "saved",
             path=path,
+            scope=scope,
         )
 
         return {
             "status": "saved",
             "path": path,
+            "scope": scope,
         }
 
     # ========================================================
@@ -171,6 +214,7 @@ class EditorInterface:
         self,
         path: str,
         content: str = "",
+        scope: str | None = "workspace",
     ) -> dict[str, Any]:
         """
         Create a new project file.
@@ -181,21 +225,25 @@ class EditorInterface:
         self.filesystem.create_file(
             path,
             content,
+            root=_root_for(scope),
         )
 
         self.events.publish(
             "created",
             path=path,
+            scope=scope,
         )
 
         return {
             "status": "created",
             "path": path,
+            "scope": scope,
         }
 
     def create_directory(
         self,
         path: str,
+        scope: str | None = "workspace",
     ) -> dict[str, Any]:
         """
         Create a new project directory.
@@ -204,17 +252,20 @@ class EditorInterface:
         """
 
         self.filesystem.create_directory(
-            path
+            path,
+            root=_root_for(scope),
         )
 
         self.events.publish(
             "created",
             path=path,
+            scope=scope,
         )
 
         return {
             "status": "created",
             "path": path,
+            "scope": scope,
         }
 
     # ========================================================
@@ -225,6 +276,7 @@ class EditorInterface:
         self,
         old_path: str,
         new_path: str,
+        scope: str | None = "workspace",
     ) -> dict[str, Any]:
         """
         Rename or move a project file/directory.
@@ -235,18 +287,21 @@ class EditorInterface:
         self.filesystem.rename_path(
             old_path,
             new_path,
+            root=_root_for(scope),
         )
 
         self.events.publish(
             "renamed",
             path=new_path,
             old_path=old_path,
+            scope=scope,
         )
 
         return {
             "status": "renamed",
             "old_path": old_path,
             "new_path": new_path,
+            "scope": scope,
         }
 
     # ========================================================
@@ -256,6 +311,7 @@ class EditorInterface:
     def delete(
         self,
         path: str,
+        scope: str | None = "workspace",
     ) -> dict[str, Any]:
         """
         Delete a project file or directory.
@@ -264,17 +320,20 @@ class EditorInterface:
         """
 
         self.filesystem.delete_path(
-            path
+            path,
+            root=_root_for(scope),
         )
 
         self.events.publish(
             "deleted",
             path=path,
+            scope=scope,
         )
 
         return {
             "status": "deleted",
             "path": path,
+            "scope": scope,
         }
 
     # ========================================================

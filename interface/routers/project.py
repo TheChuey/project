@@ -9,6 +9,7 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 
+from . import normalize_scope
 from .errors import project_manager_error
 
 
@@ -49,14 +50,21 @@ def health(
 @router.get("/api/project")
 def get_project(
     request: Request,
+    scope: str = "workspace",
 ):
     """
     Project information and filesystem tree.
+
+    Query params:
+        scope:
+            ``"workspace"`` (default) or ``"app"``.
     """
 
     try:
 
-        return request.app.state.editor.tree()
+        return request.app.state.editor.tree(
+            scope=normalize_scope(scope)
+        )
 
     except Exception as error:
 

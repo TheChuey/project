@@ -1,6 +1,8 @@
 @echo off
 rem Project Manager - start the server from the virtual environment.
 
+cd /d "%~dp0.."
+
 if not exist ".venv\Scripts\python.exe" (
     echo Virtual environment not found. Run: python -m venv .venv
     echo Then: .venv\Scripts\python -m pip install -r requirements.txt

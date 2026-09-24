@@ -6,7 +6,7 @@ clean set of operations that multiple interfaces (browser, AI
 agents, scripts) can use.
 
 Every filesystem mutation eventually goes through
-projectConfiguration.Project_files.
+parameters.filesystem.
 """
 
 from .session import EditorManager, EditorSession

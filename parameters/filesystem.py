@@ -34,11 +34,13 @@ from typing import Any
 # PROJECT CONFIGURATION
 # ============================================================
 
-PROJECT_CONFIG_DIR = Path(__file__).resolve().parent
+PARAMETERS_DIR = Path(__file__).resolve().parent
 
-PROJECT_ROOT = PROJECT_CONFIG_DIR.parent
+REPO_ROOT = PARAMETERS_DIR.parent
 
-PROJECT_JSON = PROJECT_CONFIG_DIR / "project.json"
+PROJECT_ROOT = REPO_ROOT / "workspace"
+
+PROJECT_JSON = PROJECT_ROOT / "project.json"
 
 
 # ============================================================
@@ -114,7 +116,10 @@ DEFAULT_PROJECT = {
 # PATH SECURITY
 # ============================================================
 
-def resolve_project_path(relative_path: str) -> Path:
+def resolve_project_path(
+    relative_path: str,
+    root: Path | None = None,
+) -> Path:
     """
     Convert a project-relative path into a safe absolute path.
 
@@ -122,19 +127,28 @@ def resolve_project_path(relative_path: str) -> Path:
 
         ../../some_file.txt
 
-    from escaping the project directory.
+    from escaping the active project root. The default root is the
+    managed workspace; scope-aware callers pass the repository root
+    to reach application files.
 
     Args:
         relative_path:
-            Path relative to the project root.
+            Path relative to the active root.
+        root:
+            Filesystem root the path must stay inside. Defaults to
+            the managed workspace.
 
     Returns:
         Safe absolute Path.
 
     Raises:
         ValueError:
-            If the path is empty or outside the project.
+            If the path is empty or outside the root.
     """
+
+    if root is None:
+
+        root = PROJECT_ROOT
 
     if not relative_path:
 
@@ -149,13 +163,13 @@ def resolve_project_path(relative_path: str) -> Path:
     )
 
     candidate = (
-        PROJECT_ROOT / relative_path
+        root / relative_path
     ).resolve()
 
     try:
 
         candidate.relative_to(
-            PROJECT_ROOT
+            root
         )
 
     except ValueError:
@@ -281,6 +295,7 @@ def is_text_file(path: Path) -> bool:
 
 def read_filesystem(
     directory: Path | None = None,
+    _root: Path | None = None,
 ) -> list[dict[str, Any]]:
     """
     Recursively read the project filesystem.
@@ -292,6 +307,10 @@ def read_filesystem(
     if directory is None:
 
         directory = PROJECT_ROOT
+
+    if _root is None:
+
+        _root = directory
 
     results: list[dict[str, Any]] = []
 
@@ -319,7 +338,7 @@ def read_filesystem(
             continue
 
         relative_path = child.relative_to(
-            PROJECT_ROOT
+            _root
         )
 
         relative_path = str(
@@ -341,7 +360,8 @@ def read_filesystem(
                     "path": relative_path,
                     "type": "directory",
                     "children": read_filesystem(
-                        child
+                        child,
+                        _root=_root,
                     ),
                 }
             )
@@ -399,6 +419,7 @@ def get_project_state() -> dict[str, Any]:
 
 def read_file(
     relative_path: str,
+    root: Path | None = None,
 ) -> str:
     """
     Read a text file.
@@ -406,6 +427,8 @@ def read_file(
     Args:
         relative_path:
             Project-relative file path.
+        root:
+            Filesystem root. Defaults to the managed workspace.
 
     Returns:
         File contents.
@@ -418,7 +441,8 @@ def read_file(
     """
 
     file_path = resolve_project_path(
-        relative_path
+        relative_path,
+        root,
     )
 
     if not file_path.exists():
@@ -459,6 +483,7 @@ def read_file(
 def write_file(
     relative_path: str,
     content: str,
+    root: Path | None = None,
 ) -> None:
     """
     Create or overwrite a text file.
@@ -467,7 +492,8 @@ def write_file(
     """
 
     file_path = resolve_project_path(
-        relative_path
+        relative_path,
+        root,
     )
 
     if not is_text_file(file_path):
@@ -494,6 +520,7 @@ def write_file(
 def create_file(
     relative_path: str,
     content: str = "",
+    root: Path | None = None,
 ) -> None:
     """
     Create a new file.
@@ -502,7 +529,8 @@ def create_file(
     """
 
     file_path = resolve_project_path(
-        relative_path
+        relative_path,
+        root,
     )
 
     if file_path.exists():
@@ -536,13 +564,15 @@ def create_file(
 
 def create_directory(
     relative_path: str,
+    root: Path | None = None,
 ) -> None:
     """
     Create a directory.
     """
 
     directory = resolve_project_path(
-        relative_path
+        relative_path,
+        root,
     )
 
     directory.mkdir(
@@ -558,19 +588,22 @@ def create_directory(
 def rename_path(
     old_path: str,
     new_path: str,
+    root: Path | None = None,
 ) -> None:
     """
-    Rename or move a file/directory within the project.
+    Rename or move a file/directory within the active root.
 
-    Both paths must remain inside PROJECT_ROOT.
+    Both paths must remain inside the active root.
     """
 
     source = resolve_project_path(
-        old_path
+        old_path,
+        root,
     )
 
     destination = resolve_project_path(
-        new_path
+        new_path,
+        root,
     )
 
     if not source.exists():
@@ -601,20 +634,22 @@ def rename_path(
 
 def delete_path(
     relative_path: str,
+    root: Path | None = None,
 ) -> None:
     """
     Delete a file or directory.
 
     Directories are deleted recursively.
 
-    The project root itself cannot be deleted.
+    The active root itself cannot be deleted.
     """
 
     target = resolve_project_path(
-        relative_path
+        relative_path,
+        root,
     )
 
-    if target == PROJECT_ROOT:
+    if target == root or target == PROJECT_ROOT:
 
         raise ValueError(
             "The project root cannot be deleted."

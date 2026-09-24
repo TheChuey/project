@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Manager Editor</title>
+    <title>Project Manager</title>
 
     <style>
         * {
@@ -33,7 +33,17 @@
 
         .title {
             font-weight: bold;
+            margin-right: 4px;
+        }
+
+        #projectName {
+            color: #4fc3f7;
             margin-right: 12px;
+            font-weight: bold;
+        }
+
+        .spacer {
+            flex: 1;
         }
 
         button {
@@ -58,6 +68,25 @@
             background: #7f1d1d;
         }
 
+        .scope-toggle {
+            display: flex;
+            border: 1px solid #3f3f46;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-right: 12px;
+        }
+
+        .scope-toggle button {
+            border: none;
+            border-radius: 0;
+            background: #252526;
+            padding: 6px 12px;
+        }
+
+        .scope-toggle button.active {
+            background: #0e639c;
+        }
+
         .workspace {
             display: flex;
             height: calc(100vh - 74px);
@@ -65,7 +94,7 @@
         }
 
         .sidebar {
-            width: 250px;
+            width: 280px;
             min-width: 180px;
             background: #252526;
             border-right: 1px solid #3f3f46;
@@ -99,6 +128,42 @@
             padding: 8px;
         }
 
+        /* ---- Dev scripts quick links ---- */
+        .dev-links {
+            border-bottom: 1px solid #3f3f46;
+            padding: 8px;
+        }
+
+        .dev-links-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .dev-link {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: transparent;
+            border: 1px solid transparent;
+            color: #d1d5db;
+            padding: 4px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-bottom: 2px;
+        }
+
+        .dev-link:hover {
+            background: #2a2d2e;
+            border-color: #3f3f46;
+        }
+
         .tree-item {
             user-select: none;
             cursor: pointer;
@@ -114,8 +179,33 @@
             background: #094771;
         }
 
+        .tree-item.folder {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .tree-item.folder .toggle {
+            display: inline-block;
+            width: 12px;
+            font-size: 11px;
+            color: #bbb;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .tree-item.folder .label {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .children {
             margin-left: 12px;
+        }
+
+        .children.collapsed {
+            display: none;
         }
 
         .editor-area {
@@ -171,14 +261,25 @@
 <body>
 
 <div class="topbar">
-    <div class="title">Project Manager Editor</div>
-    <button id="homeBtn" onclick="goHome()">🏠 Home</button>
-    <button id="saveBtn" class="primary" onclick="saveFile()">Save</button>
-    <button id="newFileBtn" onclick="newFile()">+ File</button>
-    <button id="newFolderBtn" onclick="newFolder()">+ Folder</button>
-    <button id="renameBtn" onclick="renameSelected()">Rename</button>
-    <button id="deleteBtn" class="danger" onclick="deleteSelected()">Delete</button>
-    <button id="refreshBtn" onclick="refreshTree()">Refresh</button>
+    <div class="title">Project Manager</div>
+    <span id="projectName">…</span>
+
+    <div class="scope-toggle" role="group" aria-label="Scope">
+        <button id="scopeWs" type="button" class="active">Workspace</button>
+        <button id="scopeApp" type="button">Dev</button>
+    </div>
+
+    <button id="saveBtn" class="primary" type="button">Save</button>
+    <button id="newFileBtn" type="button">+ File</button>
+    <button id="newFolderBtn" type="button">+ Folder</button>
+    <button id="renameBtn" type="button">Rename</button>
+    <button id="deleteBtn" class="danger" type="button">Delete</button>
+    <button id="refreshBtn" type="button">Refresh</button>
+
+    <div class="spacer"></div>
+
+    <button id="chatBtn" class="primary" type="button">💬 Chat</button>
+    <a href="/" style="color:#fff; text-decoration:none; font-size:13px;">Home</a>
 </div>
 
 <div class="workspace">
@@ -186,9 +287,18 @@
         <div class="sidebar-header">
             <span>PROJECT FILES</span>
         </div>
+
+        <div class="dev-links">
+            <div class="dev-links-head">
+                <span>Dev scripts</span>
+                <button id="devLinksToggle" type="button" style="padding:0 6px; font-size:12px;">−</button>
+            </div>
+            <div id="devLinks"></div>
+        </div>
+
         <div id="tree" class="tree">Loading...</div>
     </div>
-    
+
     <div class="resize-handle" id="resizeHandle"></div>
 
     <div class="editor-area">

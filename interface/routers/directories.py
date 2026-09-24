@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
+from . import normalize_scope
 from .errors import project_manager_error
 
 
@@ -22,19 +23,23 @@ router = APIRouter()
 def create_directory(
     request: Request,
     path: str,
+    scope: str = "workspace",
 ):
     """
     Create a project directory.
 
     Query params:
         path:
-            Project-relative directory path.
+            Root-relative directory path.
+        scope:
+            ``"workspace"`` (default) or ``"app"``.
     """
 
     try:
 
         return request.app.state.editor.create_directory(
-            path
+            path,
+            scope=normalize_scope(scope),
         )
 
     except Exception as error:
@@ -52,19 +57,23 @@ def create_directory(
 def delete_directory(
     request: Request,
     path: str,
+    scope: str = "workspace",
 ):
     """
     Delete a project directory.
 
     Query params:
         path:
-            Project-relative directory path.
+            Root-relative directory path.
+        scope:
+            ``"workspace"`` (default) or ``"app"``.
     """
 
     try:
 
         return request.app.state.editor.delete(
-            path
+            path,
+            scope=normalize_scope(scope),
         )
 
     except Exception as error:

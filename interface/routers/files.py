@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from . import normalize_scope
 from .errors import project_manager_error
 
 
@@ -27,12 +28,16 @@ class FileWriteRequest(BaseModel):
 
     content: str
 
+    scope: str = "workspace"
+
 
 class FileCreateRequest(BaseModel):
 
     path: str
 
     content: str = ""
+
+    scope: str = "workspace"
 
 
 # ============================================================
@@ -43,23 +48,28 @@ class FileCreateRequest(BaseModel):
 def read_file(
     request: Request,
     path: str,
+    scope: str = "workspace",
 ):
     """
     Read a project text file.
 
     Query params:
         path:
-            Project-relative file path.
+            Root-relative file path.
+        scope:
+            ``"workspace"`` (default) or ``"app"``.
     """
 
     try:
 
         content = request.app.state.editor.open(
-            path
+            path,
+            scope=normalize_scope(scope),
         )
         return {
             "path": path,
             "content": content,
+            "scope": scope,
         }
 
     except Exception as error:
@@ -87,6 +97,7 @@ def write_file(
         return request.app.state.editor.save(
             payload.path,
             payload.content,
+            scope=normalize_scope(payload.scope),
         )
 
     except Exception as error:
@@ -114,6 +125,7 @@ def create_file(
         return request.app.state.editor.create_file(
             payload.path,
             payload.content,
+            scope=normalize_scope(payload.scope),
         )
 
     except Exception as error:
@@ -131,19 +143,23 @@ def create_file(
 def delete_file(
     request: Request,
     path: str,
+    scope: str = "workspace",
 ):
     """
     Delete a project file.
 
     Query params:
         path:
-            Project-relative file path.
+            Root-relative file path.
+        scope:
+            ``"workspace"`` (default) or ``"app"``.
     """
 
     try:
 
         return request.app.state.editor.delete(
-            path
+            path,
+            scope=normalize_scope(scope),
         )
 
     except Exception as error:
